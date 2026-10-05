@@ -1,6 +1,6 @@
 /* 每日计划总表 - Service Worker：首次打开后缓存全部资源，之后无网络也能用 */
-/* 注意：以后更新了应用内容，请把下面的版本号 v2 改成 v3，用户下次联网打开就会自动更新 */
-var CACHE = 'daily-plan-v2';
+/* 注意：以后更新了应用内容，请把下面的版本号 v3 改成 v4，用户下次联网打开就会自动更新 */
+var CACHE = 'daily-plan-v3';
 var ASSETS = [
   './',
   './index.html',
