@@ -55,7 +55,8 @@
   }
   #page-en .card{border-top-color:var(--en);}
   #page-fit .card{border-top-color:var(--fit);}
-  #page-check .cal-card{border-top-color:var(--green);}
+  #page-check .en-cal-card{border-top-color:var(--en);}
+  #page-check .fit-cal-card{border-top-color:var(--fit);}
   #page-check .nf-card{border-top-color:var(--relapse);}
   #page-check .ops-card{border-top-color:#9ca3af;}
 
@@ -170,19 +171,21 @@
   .vcell .mark{position:absolute; top:3px; right:5px; font-size:10.5px; line-height:1; font-weight:800;}
   .vcell.future{opacity:.35;}
   .vcell.today{box-shadow:0 0 0 2.5px #3b82f6, 0 0 0 5px rgba(59,130,246,.15);}
-  /* 总打卡：深绿=双达标 蓝=英语达标 橙=健身达标 */
-  .vcell.lv-both{background:linear-gradient(160deg,#22c55e,#16a34a); color:#fff;}
-  .vcell.lv-en{background:linear-gradient(160deg,#60a5fa,#3b82f6); color:#fff;}
-  .vcell.lv-fit{background:linear-gradient(160deg,#fdba74,#f97316); color:#fff;}
+  /* 英语月历：浅蓝=已打卡 深蓝=全完成；健身月历：浅橙=已练 深橙=全完成 */
+  .vcell.v-en-some{background:#93c5fd; color:#0c2d56;}
+  .vcell.v-en-all{background:linear-gradient(160deg,#60a5fa,#3b82f6); color:#fff;}
+  .vcell.v-fit-some{background:#fdba74; color:#7c2d12;}
+  .vcell.v-fit-all{background:linear-gradient(160deg,#fdba74,#f97316); color:#fff;}
   /* 戒撸：绿=守住 红=破戒 */
   .vcell.nf-kept{background:linear-gradient(160deg,#22c55e,#16a34a); color:#fff;}
   .vcell.nf-relapse{background:linear-gradient(160deg,#f87171,#ef4444); color:#fff;}
   .legend{display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:11px; font-size:12.5px; color:var(--muted);}
   .legend span{display:inline-flex; align-items:center; gap:5px;}
   .legend i{width:12px; height:12px; border-radius:4px; display:inline-block;}
-  .lg-both{background:linear-gradient(160deg,#22c55e,#16a34a);}
-  .lg-en{background:linear-gradient(160deg,#60a5fa,#3b82f6);}
-  .lg-fit{background:linear-gradient(160deg,#fdba74,#f97316);}
+  .lg-en-some{background:#93c5fd;}
+  .lg-en-all{background:linear-gradient(160deg,#60a5fa,#3b82f6);}
+  .lg-fit-some{background:#fdba74;}
+  .lg-fit-all{background:linear-gradient(160deg,#fdba74,#f97316);}
   .lg-none{background:#f3f4f6; border:1px solid var(--line);}
   .lg-kept{background:linear-gradient(160deg,#22c55e,#16a34a);}
   .lg-relapse{background:linear-gradient(160deg,#f87171,#ef4444);}
@@ -248,8 +251,10 @@
 
   /* ---------- 日期导航 + 换练 ---------- */
   .daynav{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
-  .daynav .dlabel{flex:1; text-align:center; font-weight:700; font-size:14.5px;}
-  .daynav .dlabel small{display:block; color:var(--muted); font-weight:600; font-size:11px; margin-top:1px;}
+  .date-input{
+    flex:1; min-width:0; text-align:center; border:1px solid var(--line); border-radius:10px;
+    padding:8px; font-size:15px; font-weight:600; font-family:inherit; color:var(--text); background:#fff;
+  }
   .plan-label{font-size:12px; color:var(--muted); margin-bottom:7px;}
   .type-chip .plan-tag{font-size:10px; opacity:.65;}
 
@@ -323,7 +328,6 @@
         </div>
       </div>
       <p class="card-sub">在家 · 无器械 · 无需引体向上 · 专练背和腹</p>
-      <div class="week" id="weekStrip"></div>
       <div id="fitList"></div>
       <div class="progress"><div class="bar" id="fitBar"></div></div>
       <div class="card-stats">
@@ -364,26 +368,46 @@
       </div>
     </div>
 
-    <div class="card cal-card">
+    <div class="card en-cal-card">
       <div class="card-head">
-        <div class="card-title">📅 打卡月历</div>
-        <div class="chip" id="calChip"></div>
+        <div class="card-title">📘 英语月历</div>
+        <div class="chip en" id="enCalChip"></div>
       </div>
-      <p class="card-sub">日历由每日打卡自动标记（点日期看详情）</p>
+      <p class="card-sub">勾任意 1 项 = 当天打卡，4 项全完成更棒；点日期可补勾</p>
       <div class="cal-nav">
-        <button class="icon-btn" id="prevMonth" aria-label="上个月">‹</button>
-        <div class="month" id="monthLabel"></div>
-        <button class="icon-btn" id="nextMonth" aria-label="下个月">›</button>
-        <button class="icon-btn" id="backToday" aria-label="回到本月">今</button>
+        <button class="icon-btn" id="enPrev" aria-label="英语月历上个月">‹</button>
+        <div class="month" id="enCalLabel"></div>
+        <button class="icon-btn" id="enNext" aria-label="英语月历下个月">›</button>
+        <button class="icon-btn" id="enCalToday" aria-label="回到本月">今</button>
       </div>
-      <div class="vgrid" id="calGrid"></div>
+      <div class="vgrid" id="enCalGrid"></div>
       <div class="legend">
-        <span><i class="lg-both"></i>深绿 = 双达标</span>
-        <span><i class="lg-en"></i>蓝 = 英语达标</span>
-        <span><i class="lg-fit"></i>橙 = 健身达标</span>
-        <span><i class="lg-none"></i>灰 = 未达标</span>
+        <span><i class="lg-en-some"></i>浅蓝 = 已打卡（≥1 项）</span>
+        <span><i class="lg-en-all"></i>深蓝 = 全完成 ★</span>
+        <span><i class="lg-none"></i>灰 = 未打卡</span>
       </div>
-      <div class="day-detail" id="dayDetail"></div>
+      <div class="day-detail" id="enDayEditor"></div>
+    </div>
+
+    <div class="card fit-cal-card">
+      <div class="card-head">
+        <div class="card-title">💪 健身月历</div>
+        <div class="chip fit" id="fitCalChip"></div>
+      </div>
+      <p class="card-sub">练任意 1 个动作 = 当天打卡，全部完成更棒；点日期可补记</p>
+      <div class="cal-nav">
+        <button class="icon-btn" id="fitCalPrev" aria-label="健身月历上个月">‹</button>
+        <div class="month" id="fitCalLabel"></div>
+        <button class="icon-btn" id="fitCalNext" aria-label="健身月历下个月">›</button>
+        <button class="icon-btn" id="fitCalToday" aria-label="回到本月">今</button>
+      </div>
+      <div class="vgrid" id="fitCalGrid"></div>
+      <div class="legend">
+        <span><i class="lg-fit-some"></i>浅橙 = 已练（≥1 个）</span>
+        <span><i class="lg-fit-all"></i>深橙 = 全完成 ★</span>
+        <span><i class="lg-none"></i>灰 = 没练</span>
+      </div>
+      <div class="day-detail" id="fitDayEditor"></div>
     </div>
 
     <div class="card nf-card">
@@ -712,25 +736,18 @@ $('enEditBtn').addEventListener('click',function(){
   enEditMode=!enEditMode;enEditingId=null;renderEnglish();
 });
 
-/* ================= 渲染：健身（只能打今天；今天可换练） ================= */
+/* ================= 渲染：健身（日期可点选，任意日期可打卡/补记） ================= */
+var fitViewDate=null;
 function renderFitness(){
-  var t=todayISO();
+  var today=todayISO();
+  if(!fitViewDate||fitViewDate>today)fitViewDate=today;
+  var t=fitViewDate;
+  var isToday=(t===today);
   var type=fitTypeOf(t);
   var items=fitList(t),done=fitDay(t);
   var fb=$('fitEditBtn');
   fb.textContent=fitEditMode?'完成':'编辑';
   fb.classList.toggle('on',fitEditMode);
-
-  // 周计划条
-  var ws=weekStart(t),strip=$('weekStrip');strip.innerHTML='';
-  var names=['一','二','三','四','五','六','日'];
-  for(var i=0;i<7;i++){
-    var dt=addDays(ws,i);
-    var ty=WEEK[parseISO(dt).getDay()];
-    var cls='day t'+({'back':1,'abs':2,'combo':2,'rest':0}[ty]);
-    if(dt===t)cls+=' today';
-    strip.appendChild(el('div',cls,'周'+names[i]+'<b>'+TYPE_SHORT[ty]+'</b>'));
-  }
 
   var list=$('fitList');list.innerHTML='';
   if(fitEditMode){
@@ -762,10 +779,31 @@ function renderFitness(){
     add.addEventListener('click',function(){fitEditingId='new';renderFitness();});
     list.appendChild(add);
   }else{
-    // 今天换练（计划只是默认，点别的直接换；不做补卡）
+    // 日期行：翻页 + 点日期弹出选择器（哪天都能打卡）
+    var nav=el('div','daynav');
+    var prev=el('button','icon-btn','‹');prev.type='button';
+    prev.setAttribute('aria-label','前一天');
+    prev.addEventListener('click',function(){fitViewDate=addDays(t,-1);renderFitness();});
+    nav.appendChild(prev);
+    var dp=document.createElement('input');
+    dp.type='date';dp.className='date-input';dp.value=t;dp.max=today;
+    dp.setAttribute('aria-label','选择日期');
+    dp.addEventListener('change',function(){
+      fitViewDate=(dp.value&&dp.value<=today)?dp.value:today;
+      renderFitness();
+    });
+    nav.appendChild(dp);
+    var next=el('button','icon-btn','›');next.type='button';
+    next.setAttribute('aria-label','后一天');
+    if(isToday)next.disabled=true;
+    else next.addEventListener('click',function(){fitViewDate=addDays(t,1);renderFitness();});
+    nav.appendChild(next);
+    list.appendChild(nav);
+
+    // 换练：这天的日型（默认跟计划，点别的直接换）
     var sched=WEEK[parseISO(t).getDay()];
     var cur=fitTypeOf(t);
-    var plabel=el('div','plan-label','今天想练什么？点一下就换，计划只是参考：');
+    var plabel=el('div','plan-label',(isToday?'今天想练什么？点一下就换，计划只是参考：':'这天实际练的是（可补记）：'));
     list.appendChild(plabel);
     var tchips=el('div','type-chips');
     [['back','练背'],['abs','练腹'],['combo','背 + 腹'],['rest','休息']].forEach(function(p){
@@ -810,7 +848,7 @@ function renderFitness(){
   }
 
   var c=fitDoneCount(t);
-  $('fitChip').textContent=TYPE_NAME[type]+' · '+c+'/'+items.length;
+  $('fitChip').textContent=(isToday?'':t.slice(5)+' · ')+TYPE_NAME[type]+' · '+c+'/'+items.length;
   $('fitBar').style.width=(items.length?c/items.length*100:0)+'%';
   $('fitWeek').textContent=fitWeekCount();
   $('fitTotal').textContent=fitTotal();
@@ -859,95 +897,164 @@ function renderTaskbar(){
   $('tbPct').textContent=pct+'%';
 }
 
-/* ================= 渲染：打卡月历（深绿=达标 浅绿=有打卡） ================= */
-var calEFYM=(function(){var d=new Date();return {y:d.getFullYear(),m:d.getMonth(),ty:d.getFullYear(),tm:d.getMonth()};})();
+/* ================= 渲染：英语月历 + 健身月历（独立判定，点日期补勾） ================= */
+var calENYM=(function(){var d=new Date();return {y:d.getFullYear(),m:d.getMonth(),ty:d.getFullYear(),tm:d.getMonth()};})();
+var calFITYM=(function(){var d=new Date();return {y:d.getFullYear(),m:d.getMonth(),ty:d.getFullYear(),tm:d.getMonth()};})();
 var calNFYM=(function(){var d=new Date();return {y:d.getFullYear(),m:d.getMonth(),ty:d.getFullYear(),tm:d.getMonth()};})();
+var openEnDay=null,openFitDay=null;
 function isCur(ym){return ym.y===ym.ty&&ym.m===ym.tm;}
-function monthRecordedDays(ym){
+/* 宽松判定：勾任意一项=当天打卡；全部完成=完美（独立计算，互不影响） */
+function enLevel(t){
+  var c=enDoneCount(t),n=enTasks().length;
+  if(!n||c===0)return 'none';
+  return c===n?'all':'some';
+}
+function fitLevel(t){
+  var list=fitList(t),c=fitDoneCount(t);
+  if(!list.length||c===0)return 'none';
+  return c===list.length?'all':'some';
+}
+function monthDays(ym,levelFn){
   var days=new Date(ym.y,ym.m+1,0).getDate();
   var n=0;
   for(var d=1;d<=days;d++){
     var t=isoOf(new Date(ym.y,ym.m,d));
-    if(dayLevel(t)!=='none'||nfLog()[t])n++;
+    if(levelFn(t)!=='none')n++;
   }
   return n;
 }
-function dayLevel(t){
-  /* 严格判定：英语全部完成、健身全部完成，分别独立算达标；随便勾一项不算 */
-  var en=enDone(t),list=fitList(t);
-  var f=list.length===0?true:fitDone(t); /* 没有安排动作的日子不卡健身 */
-  if(en&&f)return 'both';
-  if(en)return 'en';
-  if(f)return 'fit';
-  return 'none';
-}
-function renderCalEF(){
+function renderCalEN(){
   var t0=todayISO();
-  $('monthLabel').textContent=calEFYM.y+' 年 '+(calEFYM.m+1)+' 月';
-  $('backToday').disabled=isCur(calEFYM);
-  $('calChip').textContent='本月 '+monthRecordedDays(calEFYM)+' 天有记录';
-  var grid=$('calGrid');grid.innerHTML='';
+  $('enCalLabel').textContent=calENYM.y+' 年 '+(calENYM.m+1)+' 月';
+  $('enCalToday').disabled=isCur(calENYM);
+  $('enCalChip').textContent='本月 '+monthDays(calENYM,enLevel)+' 天打卡';
+  var grid=$('enCalGrid');grid.innerHTML='';
   ['一','二','三','四','五','六','日'].forEach(function(h){grid.appendChild(el('div','vhead',h));});
-  var off=(new Date(calEFYM.y,calEFYM.m,1).getDay()+6)%7;
-  var days=new Date(calEFYM.y,calEFYM.m+1,0).getDate();
+  var off=(new Date(calENYM.y,calENYM.m,1).getDay()+6)%7;
+  var days=new Date(calENYM.y,calENYM.m+1,0).getDate();
   for(var i=0;i<off;i++)grid.appendChild(el('div','vcell blank'));
   for(var d=1;d<=days;d++){
-    var t=isoOf(new Date(calEFYM.y,calEFYM.m,d));
-    var lv=dayLevel(t);
+    var t=isoOf(new Date(calENYM.y,calENYM.m,d));
+    var lv=enLevel(t);
     var cls='vcell';
-    if(lv==='both')cls+=' lv-both';
-    if(lv==='en')cls+=' lv-en';
-    if(lv==='fit')cls+=' lv-fit';
+    if(lv==='all')cls+=' v-en-all';
+    if(lv==='some')cls+=' v-en-some';
     if(t>t0)cls+=' future';
     if(t===t0)cls+=' today';
     var cell=el('button',cls);
     cell.type='button';
     cell.appendChild(el('span','n',String(d)));
-    if(lv!=='none')cell.appendChild(el('span','mark',lv==='both'?'★':'✓'));
-    if(t<=t0)cell.addEventListener('click',function(tt){return function(){showDetail(tt);};}(t));
+    if(lv!=='none')cell.appendChild(el('span','mark',lv==='all'?'★':'✓'));
+    if(t<=t0)cell.addEventListener('click',function(tt){return function(){
+      openEnDay=(openEnDay===tt)?null:tt;
+      renderCalEN();
+    };}(t));
     grid.appendChild(cell);
   }
+  renderEnEditor();
 }
-function renderCalNF(){
-  var t0=todayISO(),log=nfLog();
-  $('nfMonthLabel').textContent=calNFYM.y+' 年 '+(calNFYM.m+1)+' 月';
-  var grid=$('nfGrid');grid.innerHTML='';
-  ['一','二','三','四','五','六','日'].forEach(function(h){grid.appendChild(el('div','vhead',h));});
-  var off=(new Date(calNFYM.y,calNFYM.m,1).getDay()+6)%7;
-  var days=new Date(calNFYM.y,calNFYM.m+1,0).getDate();
-  for(var i=0;i<off;i++)grid.appendChild(el('div','vcell blank'));
-  for(var d=1;d<=days;d++){
-    var t=isoOf(new Date(calNFYM.y,calNFYM.m,d));
-    var st=log[t];
-    var cls='vcell';
-    if(st==='kept')cls+=' nf-kept';
-    if(st==='relapse')cls+=' nf-relapse';
-    if(t>t0)cls+=' future';
-    if(t===t0)cls+=' today';
-    var cell=el('button',cls);
-    cell.type='button';
-    cell.appendChild(el('span','n',String(d)));
-    if(st==='kept')cell.appendChild(el('span','mark','✓'));
-    if(st==='relapse')cell.appendChild(el('span','mark','✗'));
-    grid.appendChild(cell);
+function renderEnEditor(){
+  var box=$('enDayEditor');
+  var t=openEnDay;
+  if(!t||parseISO(t).getFullYear()!==calENYM.y||parseISO(t).getMonth()!==calENYM.m){
+    box.className='day-detail';box.innerHTML='';return;
   }
-}
-function showDetail(t){
+  box.className='day-detail open';
   var wd='日一二三四五六'[parseISO(t).getDay()];
-  var box=$('dayDetail');box.classList.add('open');
-  function line(name,val){return '<div class="line"><span>'+name+'</span><span>'+val+'</span></div>';}
+  var html='<b>'+t+' 周'+wd+(t===todayISO()?' · 今天':' · 补记')+'</b>';
   if(t>todayISO()){
-    box.innerHTML='<b>'+t+' 周'+wd+'</b><div class="line"><span>未来的日子还不能打卡哦</span></div>';
-    return;
+    html+='<div class="line"><span>未来的日子还不能打卡哦</span></div>';
+  }else{
+    html+=enTasks().map(function(x){
+      var c=enDay(t)[x.id]?' checked':'';
+      return '<label class="task'+(c?' done':'')+'"><input type="checkbox" data-enid="'+x.id+'"'+c+'><span class="name">'+esc(x.name)+'</span><span class="meta">'+esc(x.meta||'')+'</span></label>';
+    }).join('');
+    html+='<div class="line"><span style="color:var(--muted);font-size:11.5px;">勾选实时保存，忘记打卡的日子可以回来补</span></div>';
   }
-  var ec=enDoneCount(t);
-  var names=enTasks().filter(function(x){return enDay(t)[x.id];}).map(function(x){return x.name;}).join('、');
-  var ty=WEEK[parseISO(t).getDay()],fc=fitDoneCount(t),fl=fitList(t);
-  var st=nfLog()[t];
-  box.innerHTML='<b>'+t+' 周'+wd+'</b>'
-    +line('📘 英语',ec?('完成 '+ec+'/4 · '+names):'未完成')
-    +line('💪 健身（'+TYPE_NAME[ty]+'）',fitDone(t)?('✅ 全部完成 '+fc+'/'+fl.length):(fc?('完成 '+fc+'/'+fl.length):'未练'))
-    +line('🛡️ 戒撸',st==='kept'?'✅ 守住':(st==='relapse'?'💔 破戒':'未标记'));
+  box.innerHTML=html;
+  box.querySelectorAll('input[data-enid]').forEach(function(cb){
+    cb.addEventListener('change',function(){
+      var d=S.english[openEnDay]=S.english[openEnDay]||{};
+      d[cb.getAttribute('data-enid')]=cb.checked;
+      save();renderAll();
+    });
+  });
+}
+function renderCalFIT(){
+  var t0=todayISO();
+  $('fitCalLabel').textContent=calFITYM.y+' 年 '+(calFITYM.m+1)+' 月';
+  $('fitCalToday').disabled=isCur(calFITYM);
+  $('fitCalChip').textContent='本月 '+monthDays(calFITYM,fitLevel)+' 天打卡';
+  var grid=$('fitCalGrid');grid.innerHTML='';
+  ['一','二','三','四','五','六','日'].forEach(function(h){grid.appendChild(el('div','vhead',h));});
+  var off=(new Date(calFITYM.y,calFITYM.m,1).getDay()+6)%7;
+  var days=new Date(calFITYM.y,calFITYM.m+1,0).getDate();
+  for(var i=0;i<off;i++)grid.appendChild(el('div','vcell blank'));
+  for(var d=1;d<=days;d++){
+    var t=isoOf(new Date(calFITYM.y,calFITYM.m,d));
+    var lv=fitLevel(t);
+    var cls='vcell';
+    if(lv==='all')cls+=' v-fit-all';
+    if(lv==='some')cls+=' v-fit-some';
+    if(t>t0)cls+=' future';
+    if(t===t0)cls+=' today';
+    var cell=el('button',cls);
+    cell.type='button';
+    cell.appendChild(el('span','n',String(d)));
+    if(lv!=='none')cell.appendChild(el('span','mark',lv==='all'?'★':'✓'));
+    if(t<=t0)cell.addEventListener('click',function(tt){return function(){
+      openFitDay=(openFitDay===tt)?null:tt;
+      renderCalFIT();
+    };}(t));
+    grid.appendChild(cell);
+  }
+  renderFitEditor();
+}
+function renderFitEditor(){
+  var box=$('fitDayEditor');
+  var t=openFitDay;
+  if(!t||parseISO(t).getFullYear()!==calFITYM.y||parseISO(t).getMonth()!==calFITYM.m){
+    box.className='day-detail';box.innerHTML='';return;
+  }
+  box.className='day-detail open';
+  var wd='日一二三四五六'[parseISO(t).getDay()];
+  var html='<b>'+t+' 周'+wd+(t===todayISO()?' · 今天':' · 补记')+'</b>';
+  if(t>todayISO()){
+    html+='<div class="line"><span>未来的日子还不能打卡哦</span></div>';
+  }else{
+    var sched=WEEK[parseISO(t).getDay()],cur=fitTypeOf(t);
+    html+='<div class="type-chips">';
+    [['back','练背'],['abs','练腹'],['combo','背 + 腹'],['rest','休息']].forEach(function(p){
+      var ty=p[0];
+      html+='<button type="button" class="type-chip'+(cur===ty?' on':'')+'" data-fittype="'+ty+'">'+p[1]+(sched===ty?' <span class="plan-tag">· 计划</span>':'')+'</button>';
+    });
+    html+='</div>';
+    html+=fitList(t).map(function(x){
+      var c=fitDay(t).indexOf(x.id)>=0?' checked':'';
+      return '<label class="task'+(c?' done':'')+'"><input type="checkbox" data-fitid="'+x.id+'"'+c+'><span class="name">'+esc(x.name)+'<span class="ex-meta">'+esc(x.meta||'')+'</span></span></label>';
+    }).join('');
+    html+='<div class="line"><span style="color:var(--muted);font-size:11.5px;">练了哪个勾哪个，实时保存；点上面的类型可换这天练的内容</span></div>';
+  }
+  box.innerHTML=html;
+  box.querySelectorAll('button[data-fittype]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var ty=btn.getAttribute('data-fittype');
+      var sched=WEEK[parseISO(t).getDay()];
+      if(ty===sched){if(S.fitOverride[t])delete S.fitOverride[t];}
+      else S.fitOverride[t]=ty;
+      save();renderAll();
+    });
+  });
+  box.querySelectorAll('input[data-fitid]').forEach(function(cb){
+    cb.addEventListener('change',function(){
+      var id=cb.getAttribute('data-fitid');
+      var d=S.fitness[openFitDay]=S.fitness[openFitDay]||[];
+      var idx=d.indexOf(id);
+      if(cb.checked&&idx<0)d.push(id);
+      if(!cb.checked&&idx>=0)d.splice(idx,1);
+      save();renderAll();
+    });
+  });
 }
 
 /* ================= 底部标签栏 ================= */
@@ -963,11 +1070,14 @@ TABS.forEach(function(tb){
   $('tab-'+tb).addEventListener('click',function(){showTab(tb);window.scrollTo(0,0);});
 });
 
-/* ================= 月历导航（两个月历独立） ================= */
+/* ================= 月历导航（各月历独立） ================= */
 function shiftYM(ym,delta){ym.m+=delta;if(ym.m<0){ym.m=11;ym.y--;}if(ym.m>11){ym.m=0;ym.y++;}}
-$('prevMonth').addEventListener('click',function(){shiftYM(calEFYM,-1);renderCalEF();});
-$('nextMonth').addEventListener('click',function(){shiftYM(calEFYM,1);renderCalEF();});
-$('backToday').addEventListener('click',function(){calEFYM.y=calEFYM.ty;calEFYM.m=calEFYM.tm;renderCalEF();});
+$('enPrev').addEventListener('click',function(){shiftYM(calENYM,-1);openEnDay=null;renderCalEN();});
+$('enNext').addEventListener('click',function(){shiftYM(calENYM,1);openEnDay=null;renderCalEN();});
+$('enCalToday').addEventListener('click',function(){calENYM.y=calENYM.ty;calENYM.m=calENYM.tm;openEnDay=null;renderCalEN();});
+$('fitCalPrev').addEventListener('click',function(){shiftYM(calFITYM,-1);openFitDay=null;renderCalFIT();});
+$('fitCalNext').addEventListener('click',function(){shiftYM(calFITYM,1);openFitDay=null;renderCalFIT();});
+$('fitCalToday').addEventListener('click',function(){calFITYM.y=calFITYM.ty;calFITYM.m=calFITYM.tm;openFitDay=null;renderCalFIT();});
 $('nfPrev').addEventListener('click',function(){shiftYM(calNFYM,-1);renderCalNF();});
 $('nfNext').addEventListener('click',function(){shiftYM(calNFYM,1);renderCalNF();});
 
@@ -1033,7 +1143,8 @@ function renderAll(){
   renderFitness();
   renderNofap();
   renderTaskbar();
-  renderCalEF();
+  renderCalEN();
+  renderCalFIT();
   renderCalNF();
 }
 
