@@ -244,6 +244,13 @@
   }
   .btn:hover{background:#e5e7eb;}
 
+  /* ---------- 日期导航 + 换练 ---------- */
+  .daynav{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+  .daynav .dlabel{flex:1; text-align:center; font-weight:700; font-size:14.5px;}
+  .daynav .dlabel small{display:block; color:var(--muted); font-weight:600; font-size:11px; margin-top:1px;}
+  .plan-label{font-size:12px; color:var(--muted); margin-bottom:7px;}
+  .type-chip .plan-tag{font-size:10px; opacity:.65;}
+
   /* ---------- 底部三大标签栏 ---------- */
   .tabbar{
     position:fixed; left:0; right:0; bottom:0; z-index:50;
@@ -477,6 +484,7 @@ var DEFAULT_EX={
 function defaultState(){
   return {
     english:{},fitness:{},nofap:{log:{}},
+    fitOverride:{},
     enTasks:JSON.parse(JSON.stringify(DEFAULT_EN_TASKS)),
     fitTasks:JSON.parse(JSON.stringify(DEFAULT_EX))
   };
@@ -506,6 +514,8 @@ function migrate(s){
   }
   delete n.attempts;
   s.nofap=n;
+  /* 每日换练：某天实际练的日型（覆盖周计划） */
+  s.fitOverride=(s.fitOverride&&typeof s.fitOverride==='object'&&!Array.isArray(s.fitOverride))?s.fitOverride:{};
   /* 自定义任务/动作列表（旧数据无此字段 → 用默认模板，内置 id 不变以兼容旧打卡记录） */
   var dEn=JSON.parse(JSON.stringify(DEFAULT_EN_TASKS));
   s.enTasks=Array.isArray(s.enTasks)?s.enTasks.filter(function(x){return x&&typeof x.name==='string'&&x.name.trim();}):dEn;
@@ -539,11 +549,13 @@ function enStreak(){
 }
 function enTotal(){var n=0;for(var t in S.english)if(enDone(t))n++;return n;}
 
-/* ================= 健身（四个日型的动作列表均可编辑） ================= */
+/* ================= 健身（四个日型的动作列表均可编辑，每天可换练、可补记） ================= */
 var WEEK={0:'rest',1:'back',2:'abs',3:'rest',4:'back',5:'abs',6:'combo'};
 var TYPE_NAME={back:'练背日',abs:'练腹日',combo:'背 + 腹',rest:'休息日'};
 var TYPE_SHORT={back:'背',abs:'腹',combo:'背腹',rest:'休'};
-function fitList(t){var a=S.fitTasks[WEEK[parseISO(t).getDay()]];return Array.isArray(a)?a:[];}
+var fitViewDate=null;
+function fitTypeOf(t){return (S.fitOverride&&S.fitOverride[t])||WEEK[parseISO(t).getDay()];}
+function fitList(t){var a=S.fitTasks[fitTypeOf(t)];return Array.isArray(a)?a:[];}
 function fitDay(t){var v=S.fitness[t];return Array.isArray(v)?v:[];}
 function fitDoneCount(t){var ids=fitList(t);var done=fitDay(t);return ids.filter(function(e){return done.indexOf(e.id)>=0;}).length;}
 function fitDone(t){var l=fitList(t);return l.length>0&&fitDoneCount(t)===l.length;}
@@ -700,27 +712,30 @@ $('enEditBtn').addEventListener('click',function(){
 
 /* ================= 渲染：健身 ================= */
 function renderFitness(){
-  var t=todayISO();
-  var type=WEEK[parseISO(t).getDay()];
+  var today=todayISO();
+  if(!fitViewDate||fitViewDate>today)fitViewDate=today;
+  var t=fitViewDate;
+  var isToday=(t===today);
+  var type=fitTypeOf(t);
   var items=fitList(t),done=fitDay(t);
   var fb=$('fitEditBtn');
   fb.textContent=fitEditMode?'完成':'编辑';
   fb.classList.toggle('on',fitEditMode);
 
-  // 周计划条
-  var ws=weekStart(t),strip=$('weekStrip');strip.innerHTML='';
+  // 周计划条（始终按真实本周显示）
+  var ws=weekStart(today),strip=$('weekStrip');strip.innerHTML='';
   var names=['一','二','三','四','五','六','日'];
   for(var i=0;i<7;i++){
     var dt=addDays(ws,i);
     var ty=WEEK[parseISO(dt).getDay()];
     var cls='day t'+({'back':1,'abs':2,'combo':2,'rest':0}[ty]);
-    if(dt===t)cls+=' today';
+    if(dt===today)cls+=' today';
     strip.appendChild(el('div',cls,'周'+names[i]+'<b>'+TYPE_SHORT[ty]+'</b>'));
   }
 
   var list=$('fitList');list.innerHTML='';
   if(fitEditMode){
-    // 日型选择
+    // 编辑动作列表（全局四个日型）
     var chips=el('div','type-chips');
     [['back','练背日'],['abs','练腹日'],['combo','背 + 腹'],['rest','休息日']].forEach(function(p){
       var c=el('button','type-chip'+(fitEditType===p[0]?' on':''),p[1]);
@@ -748,8 +763,49 @@ function renderFitness(){
     add.addEventListener('click',function(){fitEditingId='new';renderFitness();});
     list.appendChild(add);
   }else{
+    // 日期导航（可回看补记，不能看未来）
+    var nav=el('div','daynav');
+    var prev=el('button','icon-btn','‹');prev.type='button';
+    prev.setAttribute('aria-label','前一天');
+    prev.addEventListener('click',function(){fitViewDate=addDays(t,-1);renderFitness();});
+    nav.appendChild(prev);
+    var wd='日一二三四五六'[parseISO(t).getDay()];
+    var lbl=el('div','dlabel',esc(t)+' 周'+wd+'<small>'+(isToday?'今天 · 按计划练，也可换':'补记当天')+'</small>');
+    nav.appendChild(lbl);
+    var next=el('button','icon-btn','›');next.type='button';
+    next.setAttribute('aria-label','后一天');
+    if(isToday)next.disabled=true;
+    else next.addEventListener('click',function(){fitViewDate=addDays(t,1);renderFitness();});
+    nav.appendChild(next);
+    if(!isToday){
+      var back=el('button','icon-btn','今');back.type='button';
+      back.setAttribute('aria-label','回到今天');
+      back.addEventListener('click',function(){fitViewDate=today;renderFitness();});
+      nav.appendChild(back);
+    }
+    list.appendChild(nav);
+
+    // 换练：这天的日型（默认跟计划，点别的直接换）
+    var sched=WEEK[parseISO(t).getDay()];
+    var cur=fitTypeOf(t);
+    var plabel=el('div','plan-label',isToday?'今天想练什么？点一下就换，计划只是参考：':'这天实际练的是：');
+    list.appendChild(plabel);
+    var tchips=el('div','type-chips');
+    [['back','练背'],['abs','练腹'],['combo','背 + 腹'],['rest','休息']].forEach(function(p){
+      var ty=p[0];
+      var c=el('button','type-chip'+(cur===ty?' on':''),p[1]+(sched===ty?' <span class="plan-tag">· 计划</span>':''));
+      c.type='button';
+      c.addEventListener('click',function(){
+        if(ty===sched){if(S.fitOverride[t])delete S.fitOverride[t];}
+        else S.fitOverride[t]=ty;
+        save();renderFitness();
+      });
+      tchips.appendChild(c);
+    });
+    list.appendChild(tchips);
+
     if(type==='rest'){
-      list.appendChild(el('div','note','今天不练，让肌肉修复生长 💤 完成下面的轻松活动也可以打卡。'));
+      list.appendChild(el('div','note','休息日 💤 想练就点上面换成练背 / 练腹；或做 15 分钟轻松活动打卡。'));
     }
     items.forEach(function(x){
       var row=el('label','task');
@@ -777,7 +833,7 @@ function renderFitness(){
   }
 
   var c=fitDoneCount(t);
-  $('fitChip').textContent=TYPE_NAME[type]+' · '+c+'/'+items.length;
+  $('fitChip').textContent=(isToday?'':t.slice(5)+' · ')+TYPE_NAME[type]+' · '+c+'/'+items.length;
   $('fitBar').style.width=(items.length?c/items.length*100:0)+'%';
   $('fitWeek').textContent=fitWeekCount();
   $('fitTotal').textContent=fitTotal();
