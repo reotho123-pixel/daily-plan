@@ -96,6 +96,43 @@
   }
   .xhs:active{filter:brightness(.94);}
 
+  /* ---------- 编辑模式 ---------- */
+  .head-tools{display:flex; align-items:center; gap:7px;}
+  .edit-btn{
+    border:1px solid var(--line); background:#f9fafb; border-radius:999px; padding:4px 13px;
+    font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer; white-space:nowrap;
+  }
+  .edit-btn.on{background:#eef2ff; border-color:var(--brand); color:var(--brand);}
+  .task .del{
+    flex:none; width:26px; height:26px; border-radius:8px; border:1px solid #fecaca; background:var(--relapse-bg);
+    color:var(--relapse); font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; user-select:none;
+  }
+  .task .edit-hint{
+    flex:none; width:26px; height:26px; border-radius:8px; border:1px solid var(--line); background:#f9fafb;
+    font-size:13px; display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none;
+  }
+  .inline-edit{background:#f9fafb; border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:9px;}
+  .inline-edit input{
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:15px;
+    font-family:inherit; margin-bottom:8px; background:#fff; color:var(--text);
+  }
+  .inline-edit .ie-row{display:flex; gap:8px;}
+  .inline-edit .ie-row .btn{flex:1;}
+  .btn-primary{background:var(--brand); color:#fff; border-color:var(--brand);}
+  .btn-primary:hover{background:#4338ca;}
+  .type-chips{display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;}
+  .type-chip{
+    font-size:12.5px; font-weight:600; padding:6px 13px; border-radius:999px; border:1px solid var(--line);
+    background:#f9fafb; cursor:pointer; color:var(--muted);
+  }
+  .type-chip.on{background:#eef2ff; border-color:var(--brand); color:var(--brand);}
+  .add-btn{
+    width:100%; border:1.5px dashed #c7cbd4; border-radius:12px; background:none; padding:12px;
+    font-size:13.5px; font-weight:600; color:var(--muted); cursor:pointer;
+  }
+  .add-btn:active{background:#f3f4f6;}
+
   .progress{height:9px; border-radius:999px; background:#e5e7eb; margin:12px 0 9px; overflow:hidden;}
   .progress .bar{height:100%; width:0; border-radius:999px; background:var(--en); transition:width .25s;}
   #page-fit .progress .bar{background:var(--fit);}
@@ -251,7 +288,10 @@
     <div class="card">
       <div class="card-head">
         <div class="card-title">🗣️ 英语主线</div>
-        <div class="chip en" id="enChip"></div>
+        <div class="head-tools">
+          <div class="chip en" id="enChip"></div>
+          <button class="edit-btn" id="enEditBtn">编辑</button>
+        </div>
       </div>
       <p class="card-sub">每天约 60 分钟，4 项全部完成 = 当日打卡成功</p>
       <div id="enList"></div>
@@ -268,7 +308,10 @@
     <div class="card">
       <div class="card-head">
         <div class="card-title">💪 健身支线</div>
-        <div class="chip fit" id="fitChip"></div>
+        <div class="head-tools">
+          <div class="chip fit" id="fitChip"></div>
+          <button class="edit-btn" id="fitEditBtn">编辑</button>
+        </div>
       </div>
       <p class="card-sub">在家 · 无器械 · 无需引体向上 · 专练背和腹</p>
       <div class="week" id="weekStrip"></div>
@@ -394,64 +437,13 @@ function $(id){return document.getElementById(id);}
 
 /* ================= 数据存取（含旧模型迁移） ================= */
 var KEY='daily-plan-tracker-v1';
-function defaultState(){
-  return {english:{},fitness:{},nofap:{log:{}}};
-}
-function migrate(s){
-  s=(s&&typeof s==='object')?s:{};
-  s.english=(s.english&&typeof s.english==='object')?s.english:{};
-  s.fitness=(s.fitness&&typeof s.fitness==='object')?s.fitness:{};
-  var n=(s.nofap&&typeof s.nofap==='object')?s.nofap:{};
-  if(!n.log||typeof n.log!=='object'){
-    n.log={};
-    /* 旧模型（attempts 区间）→ 逐日标记：区间内=守住，区间末日=破戒 */
-    if(Array.isArray(n.attempts)){
-      var t0=todayISO();
-      var sorted=n.attempts.filter(function(a){return a&&typeof a.start==='string';})
-        .sort(function(a,b){return a.start<b.start?-1:1;});
-      sorted.forEach(function(a){
-        var end=a.end||t0;
-        if(end>todayISO())end=todayISO();
-        var d=a.start,guard=0;
-        while(d<=end&&guard<2000){
-          n.log[d]=(a.end&&d===a.end)?'relapse':'kept';
-          d=addDays(d,1);guard++;
-        }
-      });
-    }
-  }
-  delete n.attempts;
-  s.nofap=n;
-  return s;
-}
-function load(){
-  try{var raw=localStorage.getItem(KEY);return raw?migrate(JSON.parse(raw)):null;}
-  catch(e){return null;}
-}
-var S=load()||defaultState();
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
-
-/* ================= 英语 ================= */
-var EN_TASKS=[
+var DEFAULT_EN_TASKS=[
   {id:'words',name:'背单词',meta:'20 个'},
   {id:'listening',name:'听力',meta:'15 分钟'},
   {id:'reading',name:'阅读',meta:'15 分钟'},
   {id:'speaking',name:'口语 / 跟读',meta:'10 分钟'}
 ];
-function enDay(t){var v=S.english[t];return (v&&typeof v==='object')?v:{};}
-function enDoneCount(t){return EN_TASKS.filter(function(x){return enDay(t)[x.id];}).length;}
-function enDone(t){return enDoneCount(t)===EN_TASKS.length;}
-function enStreak(){
-  var t=todayISO();
-  if(!enDone(t))t=addDays(t,-1);
-  var n=0;
-  while(enDone(t)){n++;t=addDays(t,-1);if(n>3650)break;}
-  return n;
-}
-function enTotal(){var n=0;for(var t in S.english)if(enDone(t))n++;return n;}
-
-/* ================= 健身 ================= */
-var EX={
+var DEFAULT_EX={
   back:[
     {id:'superman',name:'超人式',meta:'3 组 × 15 次 · 抬起时收紧肩胛与臀部，顶峰停 2 秒',xhs:'超人式 背部训练'},
     {id:'ytw',name:'俯卧 Y-T-W 抬臂',meta:'3 组 × 每式 10 次 · 拇指朝上，用肩胛骨发力',xhs:'YTW抬臂 背部'},
@@ -482,10 +474,76 @@ var EX={
     {id:'stretch',name:'轻松活动',meta:'15 分钟 · 散步 / 拉伸 / 泡沫轴放松（可选打卡）',xhs:'宅家拉伸 放松'}
   ]
 };
+function defaultState(){
+  return {
+    english:{},fitness:{},nofap:{log:{}},
+    enTasks:JSON.parse(JSON.stringify(DEFAULT_EN_TASKS)),
+    fitTasks:JSON.parse(JSON.stringify(DEFAULT_EX))
+  };
+}
+function migrate(s){
+  s=(s&&typeof s==='object')?s:{};
+  s.english=(s.english&&typeof s.english==='object')?s.english:{};
+  s.fitness=(s.fitness&&typeof s.fitness==='object')?s.fitness:{};
+  var n=(s.nofap&&typeof s.nofap==='object')?s.nofap:{};
+  if(!n.log||typeof n.log!=='object'){
+    n.log={};
+    /* 旧模型（attempts 区间）→ 逐日标记：区间内=守住，区间末日=破戒 */
+    if(Array.isArray(n.attempts)){
+      var t0=todayISO();
+      var sorted=n.attempts.filter(function(a){return a&&typeof a.start==='string';})
+        .sort(function(a,b){return a.start<b.start?-1:1;});
+      sorted.forEach(function(a){
+        var end=a.end||t0;
+        if(end>todayISO())end=todayISO();
+        var d=a.start,guard=0;
+        while(d<=end&&guard<2000){
+          n.log[d]=(a.end&&d===a.end)?'relapse':'kept';
+          d=addDays(d,1);guard++;
+        }
+      });
+    }
+  }
+  delete n.attempts;
+  s.nofap=n;
+  /* 自定义任务/动作列表（旧数据无此字段 → 用默认模板，内置 id 不变以兼容旧打卡记录） */
+  var dEn=JSON.parse(JSON.stringify(DEFAULT_EN_TASKS));
+  s.enTasks=Array.isArray(s.enTasks)?s.enTasks.filter(function(x){return x&&typeof x.name==='string'&&x.name.trim();}):dEn;
+  if(!s.enTasks.length)s.enTasks=dEn;
+  var dFit=JSON.parse(JSON.stringify(DEFAULT_EX));
+  var ft=(s.fitTasks&&typeof s.fitTasks==='object'&&!Array.isArray(s.fitTasks))?s.fitTasks:{};
+  ['back','abs','combo','rest'].forEach(function(k){
+    ft[k]=Array.isArray(ft[k])?ft[k].filter(function(x){return x&&typeof x.name==='string'&&x.name.trim();}):dFit[k];
+  });
+  s.fitTasks=ft;
+  return s;
+}
+function load(){
+  try{var raw=localStorage.getItem(KEY);return raw?migrate(JSON.parse(raw)):null;}
+  catch(e){return null;}
+}
+var S=load()||defaultState();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+
+/* ================= 英语（列表可编辑） ================= */
+function enTasks(){return S.enTasks;}
+function enDay(t){var v=S.english[t];return (v&&typeof v==='object')?v:{};}
+function enDoneCount(t){return enTasks().filter(function(x){return enDay(t)[x.id];}).length;}
+function enDone(t){return enTasks().length>0&&enDoneCount(t)===enTasks().length;}
+function enStreak(){
+  var t=todayISO();
+  if(!enDone(t))t=addDays(t,-1);
+  var n=0;
+  while(enDone(t)){n++;t=addDays(t,-1);if(n>3650)break;}
+  return n;
+}
+function enTotal(){var n=0;for(var t in S.english)if(enDone(t))n++;return n;}
+
+/* ================= 健身（四个日型的动作列表均可编辑） ================= */
 var WEEK={0:'rest',1:'back',2:'abs',3:'rest',4:'back',5:'abs',6:'combo'};
 var TYPE_NAME={back:'练背日',abs:'练腹日',combo:'背 + 腹',rest:'休息日'};
 var TYPE_SHORT={back:'背',abs:'腹',combo:'背腹',rest:'休'};
-function fitList(t){return EX[WEEK[parseISO(t).getDay()]];}
+function fitList(t){var a=S.fitTasks[WEEK[parseISO(t).getDay()]];return Array.isArray(a)?a:[];}
 function fitDay(t){var v=S.fitness[t];return Array.isArray(v)?v:[];}
 function fitDoneCount(t){var ids=fitList(t);var done=fitDay(t);return ids.filter(function(e){return done.indexOf(e.id)>=0;}).length;}
 function fitDone(t){var l=fitList(t);return l.length>0&&fitDoneCount(t)===l.length;}
@@ -518,38 +576,138 @@ function nfBestStreak(){
   return best;
 }
 
+/* ================= 编辑状态 ================= */
+var enEditMode=false,enEditingId=null;
+var fitEditMode=false,fitEditingId=null,fitEditType='back';
+
 /* ================= 渲染：英语 ================= */
 function renderEnglish(){
   var t=todayISO(),day=enDay(t);
+  var eb=$('enEditBtn');
+  eb.textContent=enEditMode?'完成':'编辑';
+  eb.classList.toggle('on',enEditMode);
   var list=$('enList');list.innerHTML='';
-  EN_TASKS.forEach(function(x){
-    var row=el('label','task');
-    var cb=document.createElement('input');
-    cb.type='checkbox';cb.checked=!!day[x.id];
-    cb.addEventListener('change',function(){
-      var d=S.english[t]=S.english[t]||{};
-      d[x.id]=cb.checked;
-      save();renderAll();
+  if(enEditMode){
+    enTasks().forEach(function(x){
+      if(enEditingId===x.id){list.appendChild(inlineEditor('en',x));return;}
+      var row=el('div','task');
+      var del=el('span','del','✕');
+      del.addEventListener('click',function(){delTask('en',x.id);});
+      row.appendChild(del);
+      var nm=el('span','name',esc(x.name)+'<span class="ex-meta">'+esc(x.meta||'')+'</span>');
+      nm.addEventListener('click',function(){enEditingId=x.id;renderEnglish();});
+      row.appendChild(nm);
+      var ed=el('span','edit-hint','✏️');
+      ed.addEventListener('click',function(){enEditingId=x.id;renderEnglish();});
+      row.appendChild(ed);
+      list.appendChild(row);
     });
-    row.appendChild(cb);
-    row.appendChild(el('span','name',x.name));
-    row.appendChild(el('span','meta',x.meta));
-    if(day[x.id])row.classList.add('done');
-    list.appendChild(row);
-  });
+    if(enEditingId==='new')list.appendChild(inlineEditor('en',{id:'new',name:'',meta:''}));
+    var add=el('button','add-btn','＋ 添加任务');
+    add.addEventListener('click',function(){enEditingId='new';renderEnglish();});
+    list.appendChild(add);
+  }else{
+    enTasks().forEach(function(x){
+      var row=el('label','task');
+      var cb=document.createElement('input');
+      cb.type='checkbox';cb.checked=!!day[x.id];
+      cb.addEventListener('change',function(){
+        var d=S.english[t]=S.english[t]||{};
+        d[x.id]=cb.checked;
+        save();renderAll();
+      });
+      row.appendChild(cb);
+      row.appendChild(el('span','name',esc(x.name)));
+      row.appendChild(el('span','meta',esc(x.meta)));
+      if(day[x.id])row.classList.add('done');
+      list.appendChild(row);
+    });
+  }
   var c=enDoneCount(t);
-  $('enChip').textContent='今日 '+c+'/4';
-  $('enBar').style.width=(c/EN_TASKS.length*100)+'%';
+  $('enChip').textContent='今日 '+c+'/'+enTasks().length;
+  $('enBar').style.width=(enTasks().length?c/enTasks().length*100:0)+'%';
   $('enStreak').textContent=enStreak();
   $('enTotal').textContent=enTotal();
 }
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function inlineEditor(kind,x){
+  var box=el('div','inline-edit');
+  var n=document.createElement('input');n.placeholder='名称（必填）';n.value=x.name||'';n.maxLength=30;
+  var m=document.createElement('input');m.placeholder='说明（可留空，如：20 个 / 3 组 × 15 次）';m.value=x.meta||'';m.maxLength=60;
+  var row=el('div','ie-row');
+  var ok=el('button','btn btn-primary','保存');
+  var no=el('button','btn','取消');
+  ok.addEventListener('click',function(){
+    if(!n.value.trim()){n.focus();return;}
+    if(kind==='en')saveEnTask(x.id,n.value.trim(),m.value.trim());
+    else saveFitTask(fitEditType,x.id,n.value.trim(),m.value.trim());
+  });
+  no.addEventListener('click',function(){
+    enEditingId=null;fitEditingId=null;renderAll();
+  });
+  row.appendChild(ok);row.appendChild(no);
+  box.appendChild(n);box.appendChild(m);box.appendChild(row);
+  setTimeout(function(){try{n.focus();}catch(e){}},60);
+  return box;
+}
+function saveEnTask(id,name,meta){
+  if(id==='new'){
+    S.enTasks.push({id:'c'+Date.now(),name:name,meta:meta});
+  }else{
+    enTasks().forEach(function(x){
+      if(x.id===id){x.name=name;x.meta=meta;x.xhs=null;}
+    });
+  }
+  enEditingId=null;
+  save();renderAll();
+}
+function saveFitTask(type,id,name,meta){
+  var arr=S.fitTasks[type]||[];
+  if(id==='new'){
+    arr.push({id:'c'+Date.now()+type,name:name,meta:meta});
+    S.fitTasks[type]=arr;
+  }else{
+    arr.forEach(function(x){
+      if(x.id===id){x.name=name;x.meta=meta;x.xhs=null;}
+    });
+  }
+  fitEditingId=null;
+  save();renderAll();
+}
+function delTask(kind,id){
+  var item=null;
+  if(kind==='en'){enTasks().forEach(function(x){if(x.id===id)item=x;});}
+  else{(S.fitTasks[fitEditType]||[]).forEach(function(x){if(x.id===id)item=x;});}
+  if(!item)return;
+  if(!confirm('删除「'+item.name+'」？\n过往的打卡记录会保留，但今天的勾选会移除。'))return;
+  var t=todayISO();
+  if(kind==='en'){
+    S.enTasks=S.enTasks.filter(function(x){return x.id!==id;});
+    if(enDay(t)[id]){delete S.english[t][id];}
+    if(enEditingId===id)enEditingId=null;
+  }else{
+    S.fitTasks[fitEditType]=(S.fitTasks[fitEditType]||[]).filter(function(x){return x.id!==id;});
+    var d=fitDay(t);
+    var idx=d.indexOf(id);
+    if(idx>=0){d.splice(idx,1);}
+    if(fitEditingId===id)fitEditingId=null;
+  }
+  save();renderAll();
+}
+$('enEditBtn').addEventListener('click',function(){
+  enEditMode=!enEditMode;enEditingId=null;renderEnglish();
+});
 
 /* ================= 渲染：健身 ================= */
 function renderFitness(){
   var t=todayISO();
   var type=WEEK[parseISO(t).getDay()];
-  var items=EX[type],done=fitDay(t);
+  var items=fitList(t),done=fitDay(t);
+  var fb=$('fitEditBtn');
+  fb.textContent=fitEditMode?'完成':'编辑';
+  fb.classList.toggle('on',fitEditMode);
 
+  // 周计划条
   var ws=weekStart(t),strip=$('weekStrip');strip.innerHTML='';
   var names=['一','二','三','四','五','六','日'];
   for(var i=0;i<7;i++){
@@ -561,32 +719,62 @@ function renderFitness(){
   }
 
   var list=$('fitList');list.innerHTML='';
-  if(type==='rest'){
-    list.appendChild(el('div','note','今天不练，让肌肉修复生长 💤 完成下面的轻松活动也可以打卡。'));
-  }
-  items.forEach(function(x){
-    var row=el('label','task');
-    var cb=document.createElement('input');
-    cb.type='checkbox';cb.checked=done.indexOf(x.id)>=0;
-    cb.addEventListener('change',function(){
-      var d=S.fitness[t]=S.fitness[t]||[];
-      var idx=d.indexOf(x.id);
-      if(cb.checked&&idx<0)d.push(x.id);
-      if(!cb.checked&&idx>=0)d.splice(idx,1);
-      save();renderAll();
+  if(fitEditMode){
+    // 日型选择
+    var chips=el('div','type-chips');
+    [['back','练背日'],['abs','练腹日'],['combo','背 + 腹'],['rest','休息日']].forEach(function(p){
+      var c=el('button','type-chip'+(fitEditType===p[0]?' on':''),p[1]);
+      c.type='button';
+      c.addEventListener('click',function(){fitEditType=p[0];fitEditingId=null;renderFitness();});
+      chips.appendChild(c);
     });
-    row.appendChild(cb);
-    row.appendChild(el('span','name',x.name+'<span class="ex-meta">'+x.meta+'</span>'));
-    var xhs=document.createElement('a');
-    xhs.className='xhs';
-    xhs.href='https://www.xiaohongshu.com/search_result?keyword='+encodeURIComponent(x.xhs||x.name+' 教程');
-    xhs.target='_blank';xhs.rel='noopener';
-    xhs.textContent='📕 小红书';
-    xhs.addEventListener('click',function(e){e.stopPropagation();});
-    row.appendChild(xhs);
-    if(done.indexOf(x.id)>=0)row.classList.add('done');
-    list.appendChild(row);
-  });
+    list.appendChild(chips);
+    (S.fitTasks[fitEditType]||[]).forEach(function(x){
+      if(fitEditingId===x.id){list.appendChild(inlineEditor('fit',x));return;}
+      var row=el('div','task');
+      var del=el('span','del','✕');
+      del.addEventListener('click',function(){delTask('fit',x.id);});
+      row.appendChild(del);
+      var nm=el('span','name',esc(x.name)+'<span class="ex-meta">'+esc(x.meta||'')+'</span>');
+      nm.addEventListener('click',function(){fitEditingId=x.id;renderFitness();});
+      row.appendChild(nm);
+      var ed=el('span','edit-hint','✏️');
+      ed.addEventListener('click',function(){fitEditingId=x.id;renderFitness();});
+      row.appendChild(ed);
+      list.appendChild(row);
+    });
+    if(fitEditingId==='new')list.appendChild(inlineEditor('fit',{id:'new',name:'',meta:''}));
+    var add=el('button','add-btn','＋ 添加动作');
+    add.addEventListener('click',function(){fitEditingId='new';renderFitness();});
+    list.appendChild(add);
+  }else{
+    if(type==='rest'){
+      list.appendChild(el('div','note','今天不练，让肌肉修复生长 💤 完成下面的轻松活动也可以打卡。'));
+    }
+    items.forEach(function(x){
+      var row=el('label','task');
+      var cb=document.createElement('input');
+      cb.type='checkbox';cb.checked=done.indexOf(x.id)>=0;
+      cb.addEventListener('change',function(){
+        var d=S.fitness[t]=S.fitness[t]||[];
+        var idx=d.indexOf(x.id);
+        if(cb.checked&&idx<0)d.push(x.id);
+        if(!cb.checked&&idx>=0)d.splice(idx,1);
+        save();renderAll();
+      });
+      row.appendChild(cb);
+      row.appendChild(el('span','name',esc(x.name)+'<span class="ex-meta">'+esc(x.meta)+'</span>'));
+      var xhs=document.createElement('a');
+      xhs.className='xhs';
+      xhs.href='https://www.xiaohongshu.com/search_result?keyword='+encodeURIComponent(x.xhs||x.name+' 教程');
+      xhs.target='_blank';xhs.rel='noopener';
+      xhs.textContent='📕 小红书';
+      xhs.addEventListener('click',function(e){e.stopPropagation();});
+      row.appendChild(xhs);
+      if(done.indexOf(x.id)>=0)row.classList.add('done');
+      list.appendChild(row);
+    });
+  }
 
   var c=fitDoneCount(t);
   $('fitChip').textContent=TYPE_NAME[type]+' · '+c+'/'+items.length;
@@ -594,6 +782,9 @@ function renderFitness(){
   $('fitWeek').textContent=fitWeekCount();
   $('fitTotal').textContent=fitTotal();
 }
+$('fitEditBtn').addEventListener('click',function(){
+  fitEditMode=!fitEditMode;fitEditingId=null;renderFitness();
+});
 
 /* ================= 渲染：戒撸 ================= */
 function renderNofap(){
@@ -623,13 +814,15 @@ function renderTaskbar(){
   var fc=fitDoneCount(t),fl=fitList(t).length;
   var nf=nfStreak(),best=nfBestStreak();
   $('tbEnNum').textContent=ec;
-  $('tbEnBar').style.width=(ec/EN_TASKS.length*100)+'%';
+  $('tbEnBar').style.width=(enTasks().length?ec/enTasks().length*100:100)+'%';
   $('tbFitNum').textContent=fc;
   $('tbFitTotal').textContent=' / '+fl+' 个';
-  $('tbFitBar').style.width=(fl?fc/fl*100:0)+'%';
+  $('tbFitBar').style.width=(fl?fc/fl*100:100)+'%';
   $('tbNfNum').textContent=nf;
   $('tbNfBar').style.width=(best>0?Math.min(100,nf/best*100):(nfLog()[t]==='kept'?100:35))+'%';
-  var pct=Math.round((ec/EN_TASKS.length+(fl?fc/fl:0))/2*100);
+  var enP=enTasks().length?ec/enTasks().length:1;
+  var fitP=fl?fc/fl:1;
+  var pct=Math.round((enP+fitP)/2*100);
   $('tbPct').textContent=pct+'%';
 }
 
@@ -647,7 +840,8 @@ function monthRecordedDays(ym){
   return n;
 }
 function dayLevel(t){
-  var en=enDone(t),f=fitDone(t);
+  var en=enDone(t),list=fitList(t);
+  var f=list.length===0?true:fitDone(t); /* 没有安排动作的日子不卡达标 */
   if(en&&f)return 'both';
   if(enDoneCount(t)>0||fitDoneCount(t)>0)return 'some';
   return 'none';
@@ -711,7 +905,7 @@ function showDetail(t){
     return;
   }
   var ec=enDoneCount(t);
-  var names=EN_TASKS.filter(function(x){return enDay(t)[x.id];}).map(function(x){return x.name;}).join('、');
+  var names=enTasks().filter(function(x){return enDay(t)[x.id];}).map(function(x){return x.name;}).join('、');
   var ty=WEEK[parseISO(t).getDay()],fc=fitDoneCount(t),fl=fitList(t);
   var st=nfLog()[t];
   box.innerHTML='<b>'+t+' 周'+wd+'</b>'
