@@ -80,13 +80,21 @@
   .task:hover{border-color:#c7cbd4;}
   .task input{width:21px; height:21px; accent-color:var(--en); flex:none; cursor:pointer;}
   #page-fit .task input{accent-color:var(--fit);}
-  .task .name{font-weight:600; font-size:15.5px;}
-  .task .meta{margin-left:auto; font-size:12.5px; color:var(--muted); text-align:right; flex:none;}
+  .task .name{font-weight:600; font-size:15.5px; flex:1; min-width:0;}
+  .task .meta{font-size:12.5px; color:var(--muted); text-align:right; flex:none;}
   .task .ex-meta{display:block; font-size:12.5px; color:var(--muted); font-weight:400; margin-top:1px;}
   .task.done{background:var(--en-bg); border-color:#bfdbfe;}
   #page-fit .task.done{background:var(--fit-bg); border-color:#fed7aa;}
 
   .note{margin-top:10px; font-size:12px; color:var(--muted); background:#f9fafb; border-radius:10px; padding:9px 11px;}
+
+  /* 小红书教程链接 */
+  .xhs{
+    flex:none; margin-left:10px; font-size:11.5px; font-weight:700; text-decoration:none;
+    padding:6px 10px; border-radius:9px; background:#fff0f1; color:#ff2442; border:1px solid #ffd9dc;
+    white-space:nowrap;
+  }
+  .xhs:active{filter:brightness(.94);}
 
   .progress{height:9px; border-radius:999px; background:#e5e7eb; margin:12px 0 9px; overflow:hidden;}
   .progress .bar{height:100%; width:0; border-radius:999px; background:var(--en); transition:width .25s;}
@@ -168,6 +176,29 @@
   .nf-btn.relapse.on{background:var(--relapse); color:#fff;}
   .nf-extra{margin-top:10px; font-size:12.5px; color:var(--muted); text-align:center;}
 
+  /* ---------- 今日任务栏（打卡页顶部） ---------- */
+  .taskbar{
+    border-radius:16px;
+    background:linear-gradient(135deg,#312e81 0%,#4f46e5 55%,#7c3aed 100%);
+    color:#fff; padding:16px 18px; margin-bottom:14px;
+    box-shadow:0 6px 20px rgba(67,56,202,.35);
+  }
+  .taskbar .tb-title{font-size:13px; font-weight:700; letter-spacing:2px; opacity:.85; margin-bottom:10px;}
+  .tb-row{display:flex; gap:16px; align-items:stretch;}
+  .tb-item{flex:1; min-width:0;}
+  .tb-item .tb-name{font-size:12px; opacity:.8; margin-bottom:3px;}
+  .tb-item .tb-num{font-size:24px; font-weight:800; line-height:1.1;}
+  .tb-item .tb-num small{font-size:12px; font-weight:600; opacity:.75;}
+  .tb-item .pbar{height:8px; border-radius:999px; background:rgba(255,255,255,.22); margin-top:7px; overflow:hidden;}
+  .tb-item .pbar i{display:block; height:100%; width:0; border-radius:999px; transition:width .3s;}
+  #tbEn .pbar i{background:#60a5fa;}
+  #tbFit .pbar i{background:#fdba74;}
+  #tbNf .pbar i{background:#34d399;}
+  .tb-sep{width:1px; background:rgba(255,255,255,.25); flex:none;}
+  .tb-overall{text-align:center; flex:none; display:flex; flex-direction:column; justify-content:center;}
+  .tb-overall .pct{font-size:30px; font-weight:800; line-height:1;}
+  .tb-overall .pct-label{font-size:11px; opacity:.8; margin-top:3px;}
+
   /* ---------- 数据操作 ---------- */
   .ops-row{display:flex; gap:9px; flex-wrap:wrap;}
   .btn{
@@ -198,6 +229,12 @@
     .nf-stat .v{font-size:28px;}
     .nf-btn{font-size:14px;}
     .vcell{min-height:44px;}
+    .taskbar{padding:13px 14px;}
+    .tb-row{flex-wrap:wrap; gap:10px;}
+    .tb-item{flex:1 1 44%;}
+    .tb-sep{display:none;}
+    .tb-overall{flex:1 1 100%;}
+    .tb-overall .pct{font-size:26px;}
   }
 </style>
 </head>
@@ -247,6 +284,34 @@
 
   <!-- 页面三：打卡 -->
   <section class="page" id="page-check">
+    <div class="taskbar" aria-label="今日任务栏">
+      <div class="tb-title">今日任务栏</div>
+      <div class="tb-row">
+        <div class="tb-item" id="tbEn">
+          <div class="tb-name">📘 英语打卡</div>
+          <div class="tb-num"><span id="tbEnNum">0</span><small> / 4 项</small></div>
+          <div class="pbar"><i id="tbEnBar"></i></div>
+        </div>
+        <div class="tb-sep"></div>
+        <div class="tb-item" id="tbFit">
+          <div class="tb-name">💪 健身打卡</div>
+          <div class="tb-num"><span id="tbFitNum">0</span><small id="tbFitTotal"> / 7 个</small></div>
+          <div class="pbar"><i id="tbFitBar"></i></div>
+        </div>
+        <div class="tb-sep"></div>
+        <div class="tb-item" id="tbNf">
+          <div class="tb-name">🛡️ 戒撸坚持</div>
+          <div class="tb-num"><span id="tbNfNum">0</span><small> 天 ✊</small></div>
+          <div class="pbar"><i id="tbNfBar"></i></div>
+        </div>
+        <div class="tb-sep"></div>
+        <div class="tb-overall">
+          <div class="pct" id="tbPct">0%</div>
+          <div class="pct-label">今日完成度</div>
+        </div>
+      </div>
+    </div>
+
     <div class="card cal-card">
       <div class="card-head">
         <div class="card-title">📅 打卡月历</div>
@@ -388,33 +453,33 @@ function enTotal(){var n=0;for(var t in S.english)if(enDone(t))n++;return n;}
 /* ================= 健身 ================= */
 var EX={
   back:[
-    {id:'superman',name:'超人式',meta:'3 组 × 15 次 · 抬起时收紧肩胛与臀部，顶峰停 2 秒'},
-    {id:'ytw',name:'俯卧 Y-T-W 抬臂',meta:'3 组 × 每式 10 次 · 拇指朝上，用肩胛骨发力'},
-    {id:'snowangel',name:'反向雪天使',meta:'3 组 × 12 次 · 手臂伸直，贴地缓慢上下摆动'},
-    {id:'wallslide',name:'靠墙天使',meta:'3 组 × 12 次 · 背贴墙，手臂沿墙上下滑动'},
-    {id:'doorrow',name:'门框划船',meta:'3 组 × 12 次 · 抓稳门框、身体后倾，慢速把自己拉回来'},
-    {id:'bearcrawl',name:'熊爬',meta:'3 组 × 30 秒 · 膝盖微离地，核心绷住，背放平'},
-    {id:'catcow',name:'猫牛式放松',meta:'1 分钟 · 起伏配合呼吸，放松整条脊柱'}
+    {id:'superman',name:'超人式',meta:'3 组 × 15 次 · 抬起时收紧肩胛与臀部，顶峰停 2 秒',xhs:'超人式 背部训练'},
+    {id:'ytw',name:'俯卧 Y-T-W 抬臂',meta:'3 组 × 每式 10 次 · 拇指朝上，用肩胛骨发力',xhs:'YTW抬臂 背部'},
+    {id:'snowangel',name:'反向雪天使',meta:'3 组 × 12 次 · 手臂伸直，贴地缓慢上下摆动',xhs:'反向雪天使 背部'},
+    {id:'wallslide',name:'靠墙天使',meta:'3 组 × 12 次 · 背贴墙，手臂沿墙上下滑动',xhs:'靠墙天使 体态'},
+    {id:'doorrow',name:'门框划船',meta:'3 组 × 12 次 · 抓稳门框、身体后倾，慢速把自己拉回来',xhs:'门框划船 背部'},
+    {id:'bearcrawl',name:'熊爬',meta:'3 组 × 30 秒 · 膝盖微离地，核心绷住，背放平',xhs:'熊爬 健身'},
+    {id:'catcow',name:'猫牛式放松',meta:'1 分钟 · 起伏配合呼吸，放松整条脊柱',xhs:'猫牛式 拉伸'}
   ],
   abs:[
-    {id:'crunch',name:'卷腹',meta:'3 组 × 20 次 · 下背贴地，用腹肌卷起肩胛'},
-    {id:'revcrunch',name:'反向卷腹',meta:'3 组 × 15 次 · 用下腹把臀部抬离地面'},
-    {id:'flutter',name:'剪刀腿',meta:'3 组 × 30 秒 · 下背压紧地面，腿越低越难'},
-    {id:'plank',name:'平板支撑',meta:'3 组 × 45 秒 · 头到脚一条直线，不塌腰'},
-    {id:'sideplank',name:'侧平板',meta:'左右各 30 秒 × 2 组 · 髋部顶起，身体成直线'},
-    {id:'russian',name:'俄罗斯转体',meta:'3 组 × 20 次 · 腹斜肌发力，转动胸腔而非手臂'},
-    {id:'mtclimb',name:'登山跑',meta:'3 组 × 30 秒 · 膝盖快速提向胸口，肩在手腕正上方'}
+    {id:'crunch',name:'卷腹',meta:'3 组 × 20 次 · 下背贴地，用腹肌卷起肩胛',xhs:'卷腹 标准动作'},
+    {id:'revcrunch',name:'反向卷腹',meta:'3 组 × 15 次 · 用下腹把臀部抬离地面',xhs:'反向卷腹 下腹'},
+    {id:'flutter',name:'剪刀腿',meta:'3 组 × 30 秒 · 下背压紧地面，腿越低越难',xhs:'剪刀腿 腹肌'},
+    {id:'plank',name:'平板支撑',meta:'3 组 × 45 秒 · 头到脚一条直线，不塌腰',xhs:'平板支撑 标准'},
+    {id:'sideplank',name:'侧平板',meta:'左右各 30 秒 × 2 组 · 髋部顶起，身体成直线',xhs:'侧平板支撑 教学'},
+    {id:'russian',name:'俄罗斯转体',meta:'3 组 × 20 次 · 腹斜肌发力，转动胸腔而非手臂',xhs:'俄罗斯转体 腹肌'},
+    {id:'mtclimb',name:'登山跑',meta:'3 组 × 30 秒 · 膝盖快速提向胸口，肩在手腕正上方',xhs:'登山跑 腹肌'}
   ],
   combo:[
-    {id:'superman',name:'超人式',meta:'2 组 × 12 次'},
-    {id:'ytw',name:'俯卧 Y-T-W 抬臂',meta:'2 组 × 每式 8 次'},
-    {id:'crunch',name:'卷腹',meta:'2 组 × 15 次'},
-    {id:'russian',name:'俄罗斯转体',meta:'2 组 × 16 次'},
-    {id:'plank',name:'平板支撑',meta:'2 组 × 40 秒'},
-    {id:'catcow',name:'猫牛式放松',meta:'1 分钟'}
+    {id:'superman',name:'超人式',meta:'2 组 × 12 次',xhs:'超人式 背部训练'},
+    {id:'ytw',name:'俯卧 Y-T-W 抬臂',meta:'2 组 × 每式 8 次',xhs:'YTW抬臂 背部'},
+    {id:'crunch',name:'卷腹',meta:'2 组 × 15 次',xhs:'卷腹 标准动作'},
+    {id:'russian',name:'俄罗斯转体',meta:'2 组 × 16 次',xhs:'俄罗斯转体 腹肌'},
+    {id:'plank',name:'平板支撑',meta:'2 组 × 40 秒',xhs:'平板支撑 标准'},
+    {id:'catcow',name:'猫牛式放松',meta:'1 分钟',xhs:'猫牛式 拉伸'}
   ],
   rest:[
-    {id:'stretch',name:'轻松活动',meta:'15 分钟 · 散步 / 拉伸 / 泡沫轴放松（可选打卡）'}
+    {id:'stretch',name:'轻松活动',meta:'15 分钟 · 散步 / 拉伸 / 泡沫轴放松（可选打卡）',xhs:'宅家拉伸 放松'}
   ]
 };
 var WEEK={0:'rest',1:'back',2:'abs',3:'rest',4:'back',5:'abs',6:'combo'};
@@ -440,6 +505,18 @@ function nfStreak(){
 }
 function nfKeptTotal(){var n=0,l=nfLog();for(var k in l)if(l[k]==='kept')n++;return n;}
 function nfRelapseTotal(){var n=0,l=nfLog();for(var k in l)if(l[k]==='relapse')n++;return n;}
+function nfBestStreak(){
+  var dates=[],l=nfLog();
+  for(var k in l)if(l[k]==='kept')dates.push(k);
+  dates.sort();
+  var best=0,run=0,prev=null;
+  dates.forEach(function(d){
+    if(prev!==null&&diffDays(prev,d)===1)run++;else run=1;
+    if(run>best)best=run;
+    prev=d;
+  });
+  return best;
+}
 
 /* ================= 渲染：英语 ================= */
 function renderEnglish(){
@@ -500,6 +577,13 @@ function renderFitness(){
     });
     row.appendChild(cb);
     row.appendChild(el('span','name',x.name+'<span class="ex-meta">'+x.meta+'</span>'));
+    var xhs=document.createElement('a');
+    xhs.className='xhs';
+    xhs.href='https://www.xiaohongshu.com/search_result?keyword='+encodeURIComponent(x.xhs||x.name+' 教程');
+    xhs.target='_blank';xhs.rel='noopener';
+    xhs.textContent='📕 小红书';
+    xhs.addEventListener('click',function(e){e.stopPropagation();});
+    row.appendChild(xhs);
     if(done.indexOf(x.id)>=0)row.classList.add('done');
     list.appendChild(row);
   });
@@ -530,6 +614,23 @@ function renderNofap(){
   var kb=$('nfKeepBtn'),rb=$('nfRelapseBtn');
   kb.classList.toggle('on',log[t]==='kept');
   rb.classList.toggle('on',log[t]==='relapse');
+}
+
+/* ================= 渲染：今日任务栏（打卡页顶部） ================= */
+function renderTaskbar(){
+  var t=todayISO();
+  var ec=enDoneCount(t);
+  var fc=fitDoneCount(t),fl=fitList(t).length;
+  var nf=nfStreak(),best=nfBestStreak();
+  $('tbEnNum').textContent=ec;
+  $('tbEnBar').style.width=(ec/EN_TASKS.length*100)+'%';
+  $('tbFitNum').textContent=fc;
+  $('tbFitTotal').textContent=' / '+fl+' 个';
+  $('tbFitBar').style.width=(fl?fc/fl*100:0)+'%';
+  $('tbNfNum').textContent=nf;
+  $('tbNfBar').style.width=(best>0?Math.min(100,nf/best*100):(nfLog()[t]==='kept'?100:35))+'%';
+  var pct=Math.round((ec/EN_TASKS.length+(fl?fc/fl:0))/2*100);
+  $('tbPct').textContent=pct+'%';
 }
 
 /* ================= 渲染：打卡月历（深绿=达标 浅绿=有打卡） ================= */
@@ -701,6 +802,7 @@ function renderAll(){
   renderEnglish();
   renderFitness();
   renderNofap();
+  renderTaskbar();
   renderCalEF();
   renderCalNF();
 }
