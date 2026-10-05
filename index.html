@@ -170,9 +170,10 @@
   .vcell .mark{position:absolute; top:3px; right:5px; font-size:10.5px; line-height:1; font-weight:800;}
   .vcell.future{opacity:.35;}
   .vcell.today{box-shadow:0 0 0 2.5px #3b82f6, 0 0 0 5px rgba(59,130,246,.15);}
-  /* 总打卡：深绿=全部达标 浅绿=有打卡 */
+  /* 总打卡：深绿=双达标 蓝=英语达标 橙=健身达标 */
   .vcell.lv-both{background:linear-gradient(160deg,#22c55e,#16a34a); color:#fff;}
-  .vcell.lv-some{background:var(--lgreen); color:#166534;}
+  .vcell.lv-en{background:linear-gradient(160deg,#60a5fa,#3b82f6); color:#fff;}
+  .vcell.lv-fit{background:linear-gradient(160deg,#fdba74,#f97316); color:#fff;}
   /* 戒撸：绿=守住 红=破戒 */
   .vcell.nf-kept{background:linear-gradient(160deg,#22c55e,#16a34a); color:#fff;}
   .vcell.nf-relapse{background:linear-gradient(160deg,#f87171,#ef4444); color:#fff;}
@@ -180,7 +181,8 @@
   .legend span{display:inline-flex; align-items:center; gap:5px;}
   .legend i{width:12px; height:12px; border-radius:4px; display:inline-block;}
   .lg-both{background:linear-gradient(160deg,#22c55e,#16a34a);}
-  .lg-some{background:var(--lgreen);}
+  .lg-en{background:linear-gradient(160deg,#60a5fa,#3b82f6);}
+  .lg-fit{background:linear-gradient(160deg,#fdba74,#f97316);}
   .lg-none{background:#f3f4f6; border:1px solid var(--line);}
   .lg-kept{background:linear-gradient(160deg,#22c55e,#16a34a);}
   .lg-relapse{background:linear-gradient(160deg,#f87171,#ef4444);}
@@ -376,9 +378,10 @@
       </div>
       <div class="vgrid" id="calGrid"></div>
       <div class="legend">
-        <span><i class="lg-both"></i>深绿 = 达标（全部完成）</span>
-        <span><i class="lg-some"></i>浅绿 = 有打卡</span>
-        <span><i class="lg-none"></i>灰 = 无打卡</span>
+        <span><i class="lg-both"></i>深绿 = 双达标</span>
+        <span><i class="lg-en"></i>蓝 = 英语达标</span>
+        <span><i class="lg-fit"></i>橙 = 健身达标</span>
+        <span><i class="lg-none"></i>灰 = 未达标</span>
       </div>
       <div class="day-detail" id="dayDetail"></div>
     </div>
@@ -549,11 +552,10 @@ function enStreak(){
 }
 function enTotal(){var n=0;for(var t in S.english)if(enDone(t))n++;return n;}
 
-/* ================= 健身（四个日型的动作列表均可编辑，每天可换练、可补记） ================= */
+/* ================= 健身（动作列表可编辑；每天可换练，不设补卡） ================= */
 var WEEK={0:'rest',1:'back',2:'abs',3:'rest',4:'back',5:'abs',6:'combo'};
 var TYPE_NAME={back:'练背日',abs:'练腹日',combo:'背 + 腹',rest:'休息日'};
 var TYPE_SHORT={back:'背',abs:'腹',combo:'背腹',rest:'休'};
-var fitViewDate=null;
 function fitTypeOf(t){return (S.fitOverride&&S.fitOverride[t])||WEEK[parseISO(t).getDay()];}
 function fitList(t){var a=S.fitTasks[fitTypeOf(t)];return Array.isArray(a)?a:[];}
 function fitDay(t){var v=S.fitness[t];return Array.isArray(v)?v:[];}
@@ -710,26 +712,23 @@ $('enEditBtn').addEventListener('click',function(){
   enEditMode=!enEditMode;enEditingId=null;renderEnglish();
 });
 
-/* ================= 渲染：健身 ================= */
+/* ================= 渲染：健身（只能打今天；今天可换练） ================= */
 function renderFitness(){
-  var today=todayISO();
-  if(!fitViewDate||fitViewDate>today)fitViewDate=today;
-  var t=fitViewDate;
-  var isToday=(t===today);
+  var t=todayISO();
   var type=fitTypeOf(t);
   var items=fitList(t),done=fitDay(t);
   var fb=$('fitEditBtn');
   fb.textContent=fitEditMode?'完成':'编辑';
   fb.classList.toggle('on',fitEditMode);
 
-  // 周计划条（始终按真实本周显示）
-  var ws=weekStart(today),strip=$('weekStrip');strip.innerHTML='';
+  // 周计划条
+  var ws=weekStart(t),strip=$('weekStrip');strip.innerHTML='';
   var names=['一','二','三','四','五','六','日'];
   for(var i=0;i<7;i++){
     var dt=addDays(ws,i);
     var ty=WEEK[parseISO(dt).getDay()];
     var cls='day t'+({'back':1,'abs':2,'combo':2,'rest':0}[ty]);
-    if(dt===today)cls+=' today';
+    if(dt===t)cls+=' today';
     strip.appendChild(el('div',cls,'周'+names[i]+'<b>'+TYPE_SHORT[ty]+'</b>'));
   }
 
@@ -763,32 +762,10 @@ function renderFitness(){
     add.addEventListener('click',function(){fitEditingId='new';renderFitness();});
     list.appendChild(add);
   }else{
-    // 日期导航（可回看补记，不能看未来）
-    var nav=el('div','daynav');
-    var prev=el('button','icon-btn','‹');prev.type='button';
-    prev.setAttribute('aria-label','前一天');
-    prev.addEventListener('click',function(){fitViewDate=addDays(t,-1);renderFitness();});
-    nav.appendChild(prev);
-    var wd='日一二三四五六'[parseISO(t).getDay()];
-    var lbl=el('div','dlabel',esc(t)+' 周'+wd+'<small>'+(isToday?'今天 · 按计划练，也可换':'补记当天')+'</small>');
-    nav.appendChild(lbl);
-    var next=el('button','icon-btn','›');next.type='button';
-    next.setAttribute('aria-label','后一天');
-    if(isToday)next.disabled=true;
-    else next.addEventListener('click',function(){fitViewDate=addDays(t,1);renderFitness();});
-    nav.appendChild(next);
-    if(!isToday){
-      var back=el('button','icon-btn','今');back.type='button';
-      back.setAttribute('aria-label','回到今天');
-      back.addEventListener('click',function(){fitViewDate=today;renderFitness();});
-      nav.appendChild(back);
-    }
-    list.appendChild(nav);
-
-    // 换练：这天的日型（默认跟计划，点别的直接换）
+    // 今天换练（计划只是默认，点别的直接换；不做补卡）
     var sched=WEEK[parseISO(t).getDay()];
     var cur=fitTypeOf(t);
-    var plabel=el('div','plan-label',isToday?'今天想练什么？点一下就换，计划只是参考：':'这天实际练的是：');
+    var plabel=el('div','plan-label','今天想练什么？点一下就换，计划只是参考：');
     list.appendChild(plabel);
     var tchips=el('div','type-chips');
     [['back','练背'],['abs','练腹'],['combo','背 + 腹'],['rest','休息']].forEach(function(p){
@@ -833,7 +810,7 @@ function renderFitness(){
   }
 
   var c=fitDoneCount(t);
-  $('fitChip').textContent=(isToday?'':t.slice(5)+' · ')+TYPE_NAME[type]+' · '+c+'/'+items.length;
+  $('fitChip').textContent=TYPE_NAME[type]+' · '+c+'/'+items.length;
   $('fitBar').style.width=(items.length?c/items.length*100:0)+'%';
   $('fitWeek').textContent=fitWeekCount();
   $('fitTotal').textContent=fitTotal();
@@ -896,10 +873,12 @@ function monthRecordedDays(ym){
   return n;
 }
 function dayLevel(t){
+  /* 严格判定：英语全部完成、健身全部完成，分别独立算达标；随便勾一项不算 */
   var en=enDone(t),list=fitList(t);
-  var f=list.length===0?true:fitDone(t); /* 没有安排动作的日子不卡达标 */
+  var f=list.length===0?true:fitDone(t); /* 没有安排动作的日子不卡健身 */
   if(en&&f)return 'both';
-  if(enDoneCount(t)>0||fitDoneCount(t)>0)return 'some';
+  if(en)return 'en';
+  if(f)return 'fit';
   return 'none';
 }
 function renderCalEF(){
@@ -917,7 +896,8 @@ function renderCalEF(){
     var lv=dayLevel(t);
     var cls='vcell';
     if(lv==='both')cls+=' lv-both';
-    if(lv==='some')cls+=' lv-some';
+    if(lv==='en')cls+=' lv-en';
+    if(lv==='fit')cls+=' lv-fit';
     if(t>t0)cls+=' future';
     if(t===t0)cls+=' today';
     var cell=el('button',cls);
