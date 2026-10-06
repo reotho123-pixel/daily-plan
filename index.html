@@ -241,6 +241,10 @@
   .tb-overall .pct{font-size:30px; font-weight:800; line-height:1;}
   .tb-overall .pct-label{font-size:11px; opacity:.8; margin-top:3px;}
 
+  .vcell.nf-open{box-shadow:0 0 0 2px var(--relapse), 0 0 0 4px rgba(239,68,68,.12);}
+  .nf-ed-ops{display:flex; gap:10px;}
+  .nf-ed-ops .nf-btn{flex:1; padding:11px 6px; font-size:14px;}
+
   /* ---------- 数据操作 ---------- */
   .ops-row{display:flex; gap:9px; flex-wrap:wrap;}
   .btn{
@@ -415,6 +419,7 @@
         <div class="card-title">🛡️ 戒撸打卡</div>
         <div class="chip relapse" id="nfChip"></div>
       </div>
+      <p class="card-sub">破戒不可怕，重新计时就是；点日期可补记守住 / 破戒</p>
       <div class="nf-stats">
         <div class="nf-stat keep"><div class="v" id="nfStreakV">0</div><div class="l">连续戒撸天数</div></div>
         <div class="nf-stat total"><div class="v" id="nfKeptV">0</div><div class="l">累计守住天数</div></div>
@@ -435,6 +440,7 @@
         <span><i class="lg-relapse"></i>破戒</span>
         <span><i class="lg-none"></i>未标记</span>
       </div>
+      <div class="day-detail" id="nfDayEditor"></div>
     </div>
 
     <div class="card ops-card">
@@ -901,7 +907,7 @@ function renderTaskbar(){
 var calENYM=(function(){var d=new Date();return {y:d.getFullYear(),m:d.getMonth(),ty:d.getFullYear(),tm:d.getMonth()};})();
 var calFITYM=(function(){var d=new Date();return {y:d.getFullYear(),m:d.getMonth(),ty:d.getFullYear(),tm:d.getMonth()};})();
 var calNFYM=(function(){var d=new Date();return {y:d.getFullYear(),m:d.getMonth(),ty:d.getFullYear(),tm:d.getMonth()};})();
-var openEnDay=null,openFitDay=null;
+var openEnDay=null,openFitDay=null,openNfDay=null;
 function isCur(ym){return ym.y===ym.ty&&ym.m===ym.tm;}
 /* 宽松判定：勾任意一项=当天打卡；全部完成=完美（独立计算，互不影响） */
 function enLevel(t){
@@ -1052,6 +1058,71 @@ function renderFitEditor(){
       var idx=d.indexOf(id);
       if(cb.checked&&idx<0)d.push(id);
       if(!cb.checked&&idx>=0)d.splice(idx,1);
+      save();renderAll();
+    });
+  });
+}
+function renderCalNF(){
+  var t0=todayISO(),log=nfLog();
+  $('nfMonthLabel').textContent=calNFYM.y+' 年 '+(calNFYM.m+1)+' 月';
+  var grid=$('nfGrid');grid.innerHTML='';
+  ['一','二','三','四','五','六','日'].forEach(function(h){grid.appendChild(el('div','vhead',h));});
+  var off=(new Date(calNFYM.y,calNFYM.m,1).getDay()+6)%7;
+  var days=new Date(calNFYM.y,calNFYM.m+1,0).getDate();
+  for(var i=0;i<off;i++)grid.appendChild(el('div','vcell blank'));
+  for(var d=1;d<=days;d++){
+    var t=isoOf(new Date(calNFYM.y,calNFYM.m,d));
+    var st=log[t];
+    var cls='vcell';
+    if(openNfDay===t)cls+=' nf-open';
+    if(st==='kept')cls+=' nf-kept';
+    if(st==='relapse')cls+=' nf-relapse';
+    if(t>t0)cls+=' future';
+    if(t===t0)cls+=' today';
+    var cell=el('button',cls);
+    cell.type='button';
+    cell.appendChild(el('span','n',String(d)));
+    if(st==='kept')cell.appendChild(el('span','mark','✓'));
+    if(st==='relapse')cell.appendChild(el('span','mark','✗'));
+    if(t<=t0)cell.addEventListener('click',function(tt){return function(){
+      openNfDay=(openNfDay===tt)?null:tt;
+      renderCalNF();
+    };}(t));
+    grid.appendChild(cell);
+  }
+  renderNfEditor();
+}
+function renderNfEditor(){
+  var box=$('nfDayEditor');
+  var t=openNfDay;
+  if(!t||parseISO(t).getFullYear()!==calNFYM.y||parseISO(t).getMonth()!==calNFYM.m){
+    box.className='day-detail';box.innerHTML='';return;
+  }
+  box.className='day-detail open';
+  var wd='日一二三四五六'[parseISO(t).getDay()];
+  var st=nfLog()[t];
+  var html='<b>'+t+' 周'+wd+(t===todayISO()?' · 今天':' · 补记')+'</b>';
+  if(t>todayISO()){
+    html+='<div class="line"><span>未来的日子还不能打卡哦</span></div>';
+  }else{
+    html+='<div class="nf-ed-ops">'
+      +'<button type="button" class="nf-btn keep'+(st==='kept'?' on':'')+'" data-nfop="kept">✅ 守住</button>'
+      +'<button type="button" class="nf-btn relapse'+(st==='relapse'?' on':'')+'" data-nfop="relapse">💔 破戒</button>'
+      +'</div>'
+      +'<div class="line" style="margin-top:8px;"><span style="color:var(--muted);font-size:11.5px;">当前：'+(st==='kept'?'✅ 守住':(st==='relapse'?'💔 破戒':'未标记'))+'</span></div>'
+      +'<div class="nf-ed-clear" style="margin-top:8px;"><button type="button" class="btn" data-nfop="clear">清除这天的标记</button></div>';
+  }
+  box.innerHTML=html;
+  box.querySelectorAll('button[data-nfop]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var op=btn.getAttribute('data-nfop');
+      if(op==='clear'){
+        delete nfLog()[openNfDay];
+        save();renderAll();
+        return;
+      }
+      if(op==='relapse'&&!confirm('确定把 '+openNfDay+' 记为破戒吗？'))return;
+      nfLog()[openNfDay]=op;
       save();renderAll();
     });
   });
